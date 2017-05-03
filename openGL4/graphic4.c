@@ -1,0 +1,546 @@
+/*	
+*	Cray Pella Clp0022
+*	CS 445
+*/
+
+/*
+*	EXTRA CREDIT
+*
+*	-A function (score()) was added to manage a user score
+*	-The markers change color twice a second to simulate flashing
+*
+*/
+
+/*
+*	PROGRAM ARCHITECTURE
+*
+*	This program creates user assisted animation of a copter landing game by using the 
+*	following key functions: glutTimerFunc(), glutPostRedisplay(), and glutMouseFunc(),
+*	and lightBulb(). lightBulb() is used to create a light source at the origin.	 
+*	The y coordinate location of the copter is represented by by global variable, yAdd. 
+*	The velocity of the copter is represented by vVert. Global variable, degrees, is
+*	used to represent the number of degrees the objects need to rotate about the y-axis.
+*	pacer is used to control animation pacing.
+*
+*	Each time display_func() is called, it sets the back ground color to black, clears 
+*	the canvas image, and if pacer variable is equal to 0, calls move() to begin 
+*	animation. display_func calls copterDrawingFunc() to draw a copter, postDrawingFunc() to 
+*	draw a post with a sphere at the top of the post, tetherDrawingFunc() to draw a tether
+*	from the post to the red sphere's center, and sphereDrawingFunc() to draw a red sphere 
+*	with "landing markers", and messageDrawFunc() to draw all messages and buttons onto the
+*	canvas. All of the created objects are lighted based on the light source created in 
+*	lightBulb().
+*
+*	This program begins by creating the canvas and displaying all messages, all buttons,
+*	a copter, and a post in their original x,y,z locations using display_func(). 
+*	glutMouseFunc() is used to determine when the user clicks a button. As soon as the
+*	program begins, move() is called once to begin animation in the display_func(). 
+*	move() recursively calls itself using glutTimerFunc() to update yAdd, degrees, and 
+*	vVert. Then, move() uses glutPostRedisplay() to update the canvas and simulate animation. 
+*	move() determines if the copter has landed after each update. glutMouseFunc() determines
+*	if the thruster has been applied and updates the vVert variable. This process is repeated 
+*	until the copter has landed or the game has been restarted. Once, the copter has landed, 
+*	all animation stops, and the display does not change until the game is restarted.
+*	
+*/
+
+#include <GL/glut.h>
+#include "my_setup_3D_16.h"
+
+// PHYSICS VARIABLES
+float degrees = 0.0;      // the number of degrees used to rotate the sphere/tether/copter
+float yAdd = 215;	  // y-coordinate used to modify the position of the copter
+float vVert = 5;	  // vHert is the velocity in the vertical direction	 
+	 
+// GAME CONTROL VARIABLES
+int pacer = 0;		  // used to control animation
+
+// LIGHTING VARIABLES
+float positionLight[] = {0.0, 0.0, 0.0, 0.0};
+float yellow[] = { 1.0, 1.0, 0.0, 1.0 };
+float blue[] = { 0.0, 0.0, 1.0, 1.0 };
+float red[] = { 1.0, 0.0, 0.0, 1.0 };
+float white[] = {1.0,1.0,1.0,1.0};
+float blank[] = {0.0, 0.0, 0.0, 1.0};
+
+// EXTRA CREDIT FEATURE
+float velo = 5;		 	// velo is the current velocity
+int scoreNum = 0;		// the user's score up to 90
+char scoreStr[2] = {" 0"};	// scoreStr is used to hold a char version of a scoreNum
+float colorChange = 0.0;	// Used to control marker color
+float tTemp = 0;		// Used to control marker color change speed
+// END EXTRA CREDIT FEATURE
+
+/*
+* 	postDrawingFunc
+*
+*	para - N/A
+*	
+*	desc - This function draws a solid cube and stretches the cube to resemble a post.
+*	       This function draws a solid sphere at the origin (aka the top of the post)
+*
+*/
+void postDrawingFunc()
+{
+	glColor3f(1.0,1.0,1.0);		// set color to white
+	glPushMatrix();			// Draw solid cube
+	glTranslatef(0.0,-192.5,0);	// position cube
+	glScalef(5, 65, 5);		// stretch cube
+	glutSolidCube(5);		
+	glPopMatrix();
+		
+	glColor3f(1.0,1.0,0.0);		// set color to yellow
+	glPushMatrix();	
+	glTranslatef(0.0, 0.0, 0);	
+	glutSolidSphere(30, 20, 20);	// Draw solid sphere
+	glPopMatrix();
+}// END
+
+
+/*
+* 	tetherDrawingFunc
+*
+*	para - N/A
+*	
+*	desc - This function draws a line from the top of the post to the center of the sphere
+*
+*/
+void tetherDrawingFunc()
+{	
+	glColor3f(1.0, 1.0, 1.0);
+	glPushMatrix();
+	glRotatef(degrees, 0.0, 1.0, 0.0);
+	
+	glBegin(GL_LINES);
+	glVertex3f(0.0, 0.0, 0.0);
+	glVertex3f(300.0, 0.0, 0.0);
+	glEnd();
+
+	glPopMatrix();
+
+} // END
+
+
+/*
+* 	sphereDrawingFunc
+*
+*	para - N/A
+*	
+*	desc - This function draws a large solid sphere and four small markers(solid spheres)
+*		above the large sphere
+*
+*/
+void sphereDrawingFunc()
+{	
+	float shine[] = {25.0};
+	
+	glPushMatrix();
+	glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, red);
+ 	glMaterialfv(GL_FRONT, GL_SPECULAR, yellow);  	
+	glMaterialfv(GL_FRONT, GL_SHININESS, shine);
+			
+	// Used to apply rotation to all spheres drawn
+	glRotatef(degrees, 0.0, 1.0, 0.0);     
+	
+	
+	// Draw large sphere
+	glPushMatrix();	
+	glTranslatef(300.0, 0.0, 0);
+	glutSolidSphere(75.5, 20, 20);
+	glPopMatrix();
+	
+	// Draw makers
+	glDisable(GL_LIGHTING);
+	glColor3f(1.0,colorChange,1.0);
+	glPushMatrix();
+
+	glTranslatef(282.5, 75.5, 17.5);
+	glutSolidSphere(3, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(282.5, 75.5, -17.5);
+	glutSolidSphere(3, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(317.5, 75.5, 17.5);
+	glutSolidSphere(3, 20, 20);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(317.5, 75.5, -17.5);
+	glutSolidSphere(3, 20, 20);
+	glPopMatrix();
+
+	glPopMatrix(); 
+	glEnable(GL_LIGHTING);
+
+}// END
+
+
+/*
+* 	copterDrawingFunc
+*
+*	para - N/A
+*	
+*	desc - This function draws a solid cube and four "legs" (scaled solid cubes)
+*
+*/
+void copterDrawingFunc()
+{	
+   	float shine[] = { 15.0 };
+
+	glPushMatrix();			  
+	glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, blue);
+ 	glMaterialfv(GL_FRONT, GL_SPECULAR, yellow);  	
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shine);
+
+	glRotatef(degrees, 0.0, 1.0, 0.0);	// Used to apply rotation to all drawn objects
+	
+	// Draw cube (body)
+	glPushMatrix();
+	glTranslatef(300.0, yAdd, 0);
+	glutSolidCube(30);
+	glPopMatrix();
+	
+	// Draw "legs"
+	glPushMatrix();
+	glTranslatef(316.94, yAdd-22.25, -15);
+	glRotatef(15, 1.0, 0.0, 1.0);
+	glScalef(1.0, 7.5, 1.0);
+	glutSolidCube(2);
+	glPopMatrix();
+	
+	glPushMatrix();
+	glTranslatef(283.5, yAdd-22.25, -15);
+	glRotatef(90, 0.0, 1.0, 0.0);
+	glRotatef(15, 1.0, 0.0, 1.0);
+	glScalef(1.0, 7.5, 1.0);
+	glutSolidCube(2);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(316.94, yAdd-22.25, 15);
+	glRotatef(270, 0.0, 1.0, 0.0);
+	glRotatef(15, 1.0, 0.0, 1.0);
+	glScalef(1.0, 7.5, 1.0);
+	glutSolidCube(2);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(283.5, yAdd-22.25, 15);
+	glRotatef(165, 1.0, 0.0, 1.0);
+	glScalef(1.0, 7.5, 1.0);
+	glutSolidCube(2);
+	glPopMatrix();
+
+	glPopMatrix();
+}// END
+
+
+/*
+* 	reset
+*
+*	para - N/A
+*	
+*	desc - This function resets all global variables.
+*		   
+*
+*/
+void reset()
+{
+	degrees = 0.0;
+	yAdd = 215;	  		  
+	vVert = 5;	  
+	pacer = 0;
+	colorChange = 0.0;
+	velo = 5;								
+	glutPostRedisplay();
+	
+}//End
+
+
+/*
+* 	score
+*
+*	para - N/A
+*	
+*	desc - This function manages the user score and converts it to character values
+*
+*/
+void score()
+{
+	if(vVert > -50 && yAdd < 109)
+	{
+	scoreNum++;
+	
+		if(scoreNum == 10)	// Reset score after 100 points
+		{
+			scoreNum = 0;
+		}
+		else
+		{	// Converts integer score into character value
+			switch(scoreNum)
+			{	
+			case 1:
+			scoreStr[0] = '1';
+			break;
+			case 2:
+			scoreStr[0] = '2';
+			break;
+			case 3:
+			scoreStr[0] = '3';
+			break;
+			case 4:
+			scoreStr[0] = '4';
+			break;	
+			case 5:
+			scoreStr[0] = '5';
+			break;
+			case 6:
+			scoreStr[0] = '6';
+			break;	
+			case 7:
+			scoreStr[0] = '7';
+			break;
+			case 8:
+			scoreStr[0] = '8';
+			break;	
+			case 9:
+			scoreStr[0] = '9';
+			break;		
+			case 0:
+			scoreStr[0] = '0';
+			break;		
+			default:
+			break;
+			}
+		}
+	}
+}
+/*
+* 	move
+*
+*	para - N/A
+*	
+*	desc - This function updates the yAdd, vVert, and  degrees variables and callS
+*		 glutPostRedisplay() to create movement of the copter
+*
+*/
+void move()
+{
+	if(yAdd > 109 && pacer != 2)    // IF copter has not reached the markers
+	{				// and pacer does not equal 2
+		glutTimerFunc(50, move, 0); 
+		degrees+=1;		// increment degrees by 1
+		
+		if(degrees == 360)	// reset degrees after full rotation 
+		{
+			degrees = 0.0;
+		}
+
+		vVert= -32*(.05) + vVert;   // current velocity
+		yAdd = yAdd + vVert*(.05);  // new y coordinate
+		
+		// EXTRA CREDIT FEATURE
+		if(tTemp > 0.5)
+		{
+			if(colorChange == 0.0)		// controls the color change of the markers
+			{
+				colorChange = 1.0;
+			}
+			else
+			{
+				colorChange = 0.0;
+			}
+			tTemp = 0;
+		}
+		tTemp += 0.05;
+		// END EXTRA CREDIT FEATURE		
+
+		if(yAdd < 106.35)     		// Used to land copter in correct position
+		{	
+			yAdd = 106.65;
+		}
+		score();
+		glutPostRedisplay();
+			
+	}
+	
+
+}//End
+
+/*
+* 	messageDrawFunc
+*
+*	para - N/A
+*	
+*	desc - This function draws all messages and game directions to the canvas
+*
+*/
+void messageDrawFunc()
+{
+	glColor3f(1.0, 1.0, 1.0);
+	
+	//Box for displaying Restart Button
+	glBegin(GL_LINE_LOOP);
+	glVertex3f(-375, -275, 0);
+	glVertex3f(-300, -275, 0);
+	glVertex3f(-300, -225, 0);
+	glVertex3f(-375, -225, 0);
+	glEnd();
+	
+	//Box for displaying Fire Button
+	glBegin(GL_LINE_LOOP);
+	glVertex3f(-295, -275, 0);
+	glVertex3f(-225, -275, 0);
+	glVertex3f(-225, -225, 0);
+	glVertex3f(-295, -225, 0);
+	glEnd();	
+	
+	glRasterPos3f(-372.5, -255, 0);
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'R');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'e');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'s');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'t');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'a');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'r');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'t');
+
+	glRasterPos3f(-280, -255, 0);
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'F');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'i');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'r');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'e');
+
+	glRasterPos3f(-380, 270, 0);
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'S');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'c');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'o');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'r');
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,'e');
+
+	//Box for displaying Score
+	glBegin(GL_LINE_LOOP);
+	glVertex3f(-320, 290, 0);
+	glVertex3f(-320, 260, 0);
+	glVertex3f(-280, 260, 0);
+	glVertex3f(-280, 290, 0);
+	glEnd();
+	
+	glRasterPos3f(-305, 270, 0);
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,scoreStr[0]);
+	glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,scoreStr[1]);
+
+}//End
+
+
+
+/*
+*	lightBulb
+*
+*	para - N/A 
+*
+*	desc - This function enables, positions, and sets the properties of 
+*	       the main light source of the simulation
+*/
+void lightBulb()
+{
+	float lightAmbiance[] = {0.3, 0.3, 0.3, 1.0}; // Simulate light ambiance
+   	float shine[] = { 50.0 };
+   	float light_location[] = { 0.0, 0.0, 0.0, 1.0 };
+   	glClearColor (0.0, 0.0, 0.0, 0.0);
+   	
+   	glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbiance);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, white);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
+	glLightfv(GL_LIGHT0, GL_SHININESS, shine);
+	glLightfv(GL_LIGHT0, GL_POSITION, light_location);
+}// END
+
+/*
+*	display_func
+*
+*	para - N/A 
+*
+*	desc - This function sets the back ground color to black and clears the canvas image.
+*	       Calls all drawing function.
+*	       
+*/
+void display_func()
+{
+	if(pacer == 0)
+	{
+		pacer = 1;
+		move();
+	}
+	glClearColor(0.0,0.0,0.0,0.0); 
+	glEnable(GL_DEPTH_TEST);
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);  // and draw black background
+	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
+	glShadeModel(GL_SMOOTH);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	
+	glDisable(GL_LIGHTING); 	// Draw all emissive models
+	postDrawingFunc();
+	tetherDrawingFunc();
+	messageDrawFunc();
+	glEnable(GL_LIGHTING);		// End emissive models
+
+	sphereDrawingFunc();
+	copterDrawingFunc();
+	
+	glutSwapBuffers();
+	glFlush();
+} // End
+
+
+
+/*
+* 	startSim
+*
+*	para - button-right or left mouse button
+*		   state- click up or down
+*	       xl- x-coordinate of mouse location
+*	       yl- y-coordinate of mouse location
+*	
+*	desc - This function handles button input from the user.
+*
+*/
+void Fire_RestartButton(int button, int state, int xl, int yl)
+{	
+	
+	// Restarts the game
+	if(((xl > 25) && (xl < 101)) && ((yl > 525) && (yl < 575)))
+	{
+		pacer = 2;
+		glutTimerFunc(60,reset, 0);
+	}
+
+	// Fires thruster
+	if(((xl > 116) && (xl < 176)) && ((yl > 525) && (yl < 575)))
+	{
+		vVert+=10;
+	}	
+				
+}//End
+
+
+#define canvas_Width 800 // width of canvas
+#define canvas_Height 600 // height of canvas
+#define canvas_Name "Program Assignment 3 CLP0022"
+
+int main(int argc, char ** argv)
+{
+	glutInit(&argc, argv);
+	my_setup(canvas_Width, canvas_Height, canvas_Name);
+	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
+	lightBulb();
+	glutDisplayFunc(display_func); // Displays original drawing at the start of program
+	glutMouseFunc(Fire_RestartButton);
+	glutMainLoop();
+	return 0;
+}// END
+
